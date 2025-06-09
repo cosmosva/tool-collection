@@ -17,6 +17,14 @@ const tools = [
 		href: "/tools/calculator",
 		color: "green" as const,
 	},
+	{
+		id: "markdown",
+		title: "Markdown 工具",
+		description: "Markdown文档预览与格式转换",
+		icon: "📝",
+		href: "/tools/markdown",
+		color: "purple" as const,
+	},
 ];
 
 export default function HomePage() {
