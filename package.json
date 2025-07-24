@@ -1,6 +1,6 @@
 {
 	"name": "Tool_list",
-	"version": "0.2.0",
+	"version": "0.4.1",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -21,7 +21,8 @@
 		"html-docx-js": "^0.3.1",
 		"html2canvas": "^1.4.1",
 		"jspdf": "^3.0.1",
-		"markdown-it": "^14.1.0",
+		"lamejs": "^1.2.1",
+		"marked": "^5.1.2",
 		"next": "^15.2.3",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0",
@@ -31,7 +32,7 @@
 		"@biomejs/biome": "1.9.4",
 		"@tailwindcss/postcss": "^4.0.15",
 		"@types/file-saver": "^2.0.7",
-		"@types/markdown-it": "^14.1.2",
+		"@types/marked": "^5.0.2",
 		"@types/node": "^20.14.10",
 		"@types/react": "^19.0.0",
 		"@types/react-dom": "^19.0.0",

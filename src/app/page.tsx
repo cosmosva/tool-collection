@@ -25,6 +25,14 @@ const tools = [
 		href: "/tools/markdown",
 		color: "purple" as const,
 	},
+	{
+		id: "audio",
+		title: "音频处理",
+		description: "音频合并、视频音频提取、格式转换",
+		icon: "🎵",
+		href: "/tools/audio",
+		color: "yellow" as const,
+	},
 ];
 
 export default function HomePage() {

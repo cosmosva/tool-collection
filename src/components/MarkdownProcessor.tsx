@@ -6,7 +6,7 @@ import { saveAs } from 'file-saver';
 // 类型声明
 declare global {
   interface Window {
-    mdInstance?: any;
+    markedInstance?: any;
   }
 }
 
@@ -58,35 +58,59 @@ export function MarkdownProcessor() {
   const [isMarkdownReady, setIsMarkdownReady] = useState(false);
   const [fileName, setFileName] = useState('untitled.md');
 
-  // 动态加载 markdown-it 和相关依赖
+  // 动态加载 marked 并配置
   useEffect(() => {
     let isMounted = true;
     
-    const loadMarkdownIt = async () => {
+    const loadMarked = async () => {
       try {
-        const MarkdownIt = await import('markdown-it');
+        const { marked } = await import('marked');
         
         if (!isMounted) return;
         
-        const mdInstance = new MarkdownIt.default({
-          html: true,
-          linkify: true,
-          typographer: true,
-          highlight: function (str: string, lang: string) {
-            // 不使用语法高亮，避免 SSR 问题
-            return '';
-          }
-        });
+                 // 配置 marked 选项
+         marked.setOptions({
+           breaks: true,
+           gfm: true,
+         });
         
-        setRenderedHtml(mdInstance.render(markdown));
+                 // 自定义渲染器增强样式
+         const renderer = new marked.Renderer();
+         
+         // 增强表格样式
+         renderer.table = function(header: string, body: string) {
+           return `<div class="table-wrapper">
+             <table class="markdown-table">
+               <thead>${header}</thead>
+               <tbody>${body}</tbody>
+             </table>
+           </div>`;
+         };
+         
+         // 增强代码块样式
+         renderer.code = function(code: string, language: string | undefined) {
+           return `<div class="code-wrapper">
+             <pre class="markdown-code"><code class="language-${language || 'text'}">${code}</code></pre>
+           </div>`;
+         };
+         
+         // 增强引用样式
+         renderer.blockquote = function(quote: string) {
+           return `<blockquote class="markdown-blockquote">${quote}</blockquote>`;
+         };
+        
+        marked.setOptions({ renderer });
+        
+        const renderedContent = marked(markdown);
+        setRenderedHtml(renderedContent);
         setIsMarkdownReady(true);
         
-        // 设置监听器来处理后续的 markdown 变化
+        // 设置全局 marked 实例
         if (typeof window !== 'undefined') {
-          window.mdInstance = mdInstance;
+          (window as any).markedInstance = marked;
         }
       } catch (error) {
-        console.error('Failed to load markdown-it:', error);
+        console.error('Failed to load marked:', error);
         if (isMounted) {
           setRenderedHtml('<div class="p-4 text-center text-red-600">Markdown 加载失败，请刷新页面重试</div>');
           setIsMarkdownReady(true);
@@ -94,18 +118,19 @@ export function MarkdownProcessor() {
       }
     };
 
-    loadMarkdownIt();
+    loadMarked();
     
     return () => {
       isMounted = false;
     };
-  }, [markdown]);
+  }, []);
 
   // 当 markdown 内容变化时重新渲染
   useEffect(() => {
-    if (isMarkdownReady && typeof window !== 'undefined' && window.mdInstance) {
+    if (isMarkdownReady && typeof window !== 'undefined' && (window as any).markedInstance) {
       try {
-        setRenderedHtml(window.mdInstance.render(markdown));
+        const renderedContent = (window as any).markedInstance(markdown);
+        setRenderedHtml(renderedContent);
       } catch (error) {
         console.error('Rendering error:', error);
         setRenderedHtml('<div class="p-4 text-center text-red-600">渲染失败</div>');
@@ -270,34 +295,93 @@ ${renderedHtml}
       // 等待一下确保渲染完成
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const canvas = await html2canvas(previewElement, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        foreignObjectRendering: false,
-        logging: false,
-        height: previewElement.scrollHeight,
-        width: previewElement.scrollWidth,
-        scrollX: 0,
-        scrollY: 0,
-      });
+      // 创建一个临时的渲染容器，避免背景渐变等样式干扰
+      const tempContainer = document.createElement('div');
+      tempContainer.style.cssText = `
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+        width: ${previewElement.offsetWidth}px;
+        background: white;
+        padding: 20px;
+        font-family: inherit;
+        line-height: 1.6;
+        color: #333;
+        overflow: hidden;
+        border: none;
+        box-shadow: none;
+      `;
+      tempContainer.innerHTML = previewElement.innerHTML;
+      document.body.appendChild(tempContainer);
 
-      if (canvas.width === 0 || canvas.height === 0) {
-        alert('无法生成图片，请检查预览内容是否正常显示');
-        return;
-      }
+      try {
+        const canvas = await html2canvas(tempContainer, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          foreignObjectRendering: false,
+          logging: false,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: tempContainer.offsetWidth,
+          windowHeight: tempContainer.offsetHeight,
+          // 禁用一些可能导致问题的功能
+          imageTimeout: 15000,
+          removeContainer: true,
+          // 添加自定义过滤器，跳过有问题的样式
+          ignoreElements: (element) => {
+            // 跳过可能包含渐变的元素
+            const style = window.getComputedStyle(element);
+            if (style.background && style.background.includes('gradient')) {
+              return true;
+            }
+            return false;
+          },
+          onclone: (clonedDoc) => {
+            // 在克隆的文档中移除所有渐变背景
+            const elementsWithGradient = clonedDoc.querySelectorAll('*');
+            elementsWithGradient.forEach(el => {
+              const style = window.getComputedStyle(el);
+              if (style.background && style.background.includes('gradient')) {
+                (el as HTMLElement).style.background = 'white';
+              }
+            });
+          }
+        });
 
-      canvas.toBlob((blob) => {
-        if (blob) {
-          saveAs(blob, `${fileName.replace(/\.md$/, '')}.png`);
-        } else {
-          alert('图片生成失败，请重试');
+        if (canvas.width === 0 || canvas.height === 0) {
+          alert('无法生成图片，请检查预览内容是否正常显示');
+          return;
         }
-      }, 'image/png');
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            saveAs(blob, `${fileName.replace(/\.md$/, '')}.png`);
+          } else {
+            alert('图片生成失败，请重试');
+          }
+        }, 'image/png');
+        
+      } finally {
+        // 清理临时容器
+        document.body.removeChild(tempContainer);
+      }
+      
     } catch (error) {
       console.error('转换图片失败:', error);
-      alert(`转换图片失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      // 提供更详细的错误信息
+      let errorMessage = '转换图片失败';
+      if (error instanceof Error) {
+        if (error.message.includes('addColorStop')) {
+          errorMessage = '页面样式中包含无效的渐变，已修复此问题，请重试';
+        } else if (error.message.includes('non-finite')) {
+          errorMessage = '页面包含无效的数值，已优化处理逻辑，请重试';
+        } else {
+          errorMessage = `转换失败: ${error.message}`;
+        }
+      }
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -324,52 +408,210 @@ ${renderedHtml}
         return;
       }
 
-      // 等待一下确保渲染完成
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const canvas = await html2canvas(previewElement, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        foreignObjectRendering: false,
-        logging: false,
-        height: previewElement.scrollHeight,
-        width: previewElement.scrollWidth,
-        scrollX: 0,
-        scrollY: 0,
-      });
-
-      if (canvas.width === 0 || canvas.height === 0) {
-        alert('无法生成PDF，请检查预览内容是否正常显示');
+      // 获取预览区域的父容器并临时修改样式
+      const previewContainer = previewElement.parentElement;
+      if (!previewContainer) {
+        alert('无法获取预览容器');
         return;
       }
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      // 保存原始样式
+      const originalStyles = {
+        overflow: previewContainer.style.overflow,
+        height: previewContainer.style.height,
+        maxHeight: previewContainer.style.maxHeight
+      };
+
+      // 创建一个完整内容的容器
+      const fullContentContainer = document.createElement('div');
+      fullContentContainer.style.cssText = `
+        position: absolute;
+        left: -99999px;
+        top: 0;
+        width: 794px;
+        padding: 40px;
+        background: white;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        box-sizing: border-box;
+      `;
       
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 295; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      // 添加CSS规则来控制分页
+      const styleSheet = document.createElement('style');
+      styleSheet.textContent = `
+        .pdf-content p { 
+          orphans: 3;
+          widows: 3;
+          page-break-inside: avoid;
+        }
+        .pdf-content h1, .pdf-content h2, .pdf-content h3, 
+        .pdf-content h4, .pdf-content h5, .pdf-content h6 {
+          page-break-after: avoid;
+          page-break-inside: avoid;
+        }
+        .pdf-content li {
+          page-break-inside: avoid;
+        }
+        .pdf-content pre {
+          page-break-inside: avoid;
+        }
+        .pdf-content blockquote {
+          page-break-inside: avoid;
+        }
+        .pdf-content table {
+          page-break-inside: avoid;
+        }
+      `;
+      document.head.appendChild(styleSheet);
+      
+      fullContentContainer.className = 'pdf-content';
+      fullContentContainer.innerHTML = previewElement.innerHTML;
+      document.body.appendChild(fullContentContainer);
 
-      // 添加第一页
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      try {
+        // 等待内容完全渲染
+        await new Promise(resolve => setTimeout(resolve, 300));
 
-      // 添加额外页面（如果需要）
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        // 获取所有内容的总高度
+        const totalHeight = fullContentContainer.scrollHeight;
+        console.log('总内容高度:', totalHeight);
+
+        // 创建PDF
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageHeightPx = 1122; // A4高度的像素值
+        const pdfPageHeight = 297; // A4高度mm
+        const pdfPageWidth = 210; // A4宽度mm
+        const margin = 20;
+        const contentWidth = pdfPageWidth - (margin * 2);
+        const contentHeight = pdfPageHeight - (margin * 2);
+
+        // 计算需要的页数
+        const totalPages = Math.ceil(totalHeight / pageHeightPx);
+        console.log('需要页数:', totalPages);
+
+        // 分页渲染
+        for (let page = 0; page < totalPages; page++) {
+          if (page > 0) {
+            pdf.addPage();
+          }
+
+          // 创建当前页的容器
+          const pageContainer = document.createElement('div');
+          pageContainer.style.cssText = `
+            position: fixed;
+            left: -99999px;
+            top: 0;
+            width: 794px;
+            height: ${pageHeightPx}px;
+            overflow: hidden;
+            background: white;
+          `;
+
+          // 计算页面偏移，添加一些微调避免文字被切断
+          let pageOffset = page * pageHeightPx;
+          
+          // 如果不是第一页，稍微向上调整以避免切断行
+          if (page > 0) {
+            pageOffset -= 20; // 向上偏移20px，大约一行文字的高度
+          }
+
+          // 创建内容包装器，用于定位
+          const contentWrapper = document.createElement('div');
+          contentWrapper.style.cssText = `
+            position: relative;
+            top: ${-pageOffset}px;
+            padding: 40px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+          `;
+          contentWrapper.className = 'pdf-content';
+          contentWrapper.innerHTML = previewElement.innerHTML;
+          
+          pageContainer.appendChild(contentWrapper);
+          document.body.appendChild(pageContainer);
+
+          // 等待渲染
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          try {
+            // 在渲染前检查页面底部是否有被切断的元素
+            const allElements = contentWrapper.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, td, pre, blockquote');
+            allElements.forEach(element => {
+              const rect = element.getBoundingClientRect();
+              const containerRect = pageContainer.getBoundingClientRect();
+              const elementBottom = rect.bottom - containerRect.top;
+              const elementTop = rect.top - containerRect.top;
+              const elementHeight = rect.height;
+              
+              // 如果元素跨越页面边界
+              if (elementTop < pageHeightPx && elementBottom > pageHeightPx) {
+                // 计算元素在当前页面内的比例
+                const visibleHeight = pageHeightPx - elementTop;
+                const visibleRatio = visibleHeight / elementHeight;
+                
+                // 如果元素在当前页面显示不到30%，隐藏它让它完整显示在下一页
+                if (visibleRatio < 0.3) {
+                  (element as HTMLElement).style.visibility = 'hidden';
+                }
+                // 如果元素在当前页面显示超过70%，尝试调整行高来避免最后一行被切断
+                else if (visibleRatio > 0.7 && element.tagName === 'P') {
+                  // 获取行高
+                  const lineHeight = parseFloat(window.getComputedStyle(element).lineHeight);
+                  const lines = Math.floor(elementHeight / lineHeight);
+                  const visibleLines = Math.floor(visibleHeight / lineHeight);
+                  
+                  // 如果最后一行可能被切断，稍微减少行高
+                  if (visibleLines < lines) {
+                    (element as HTMLElement).style.lineHeight = `${lineHeight * 0.95}px`;
+                  }
+                }
+              }
+            });
+
+            // 使用html2canvas捕获当前页
+            const canvas = await html2canvas(pageContainer, {
+              backgroundColor: '#ffffff',
+              scale: 2,
+              useCORS: true,
+              allowTaint: false,
+              logging: false,
+              windowWidth: 794,
+              windowHeight: pageHeightPx
+            });
+
+            // 添加到PDF
+            const imgData = canvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
+
+          } finally {
+            // 清理当前页容器
+            document.body.removeChild(pageContainer);
+          }
+        }
+
+        // 保存PDF
+        pdf.save(`${fileName.replace(/\.md$/, '')}.pdf`);
+        
+      } finally {
+        // 清理临时容器和样式
+        document.body.removeChild(fullContentContainer);
+        document.head.removeChild(styleSheet);
+        
+        // 恢复原始样式
+        if (originalStyles.overflow) previewContainer.style.overflow = originalStyles.overflow;
+        if (originalStyles.height) previewContainer.style.height = originalStyles.height;
+        if (originalStyles.maxHeight) previewContainer.style.maxHeight = originalStyles.maxHeight;
       }
-
-      pdf.save(`${fileName.replace(/\.md$/, '')}.pdf`);
+      
     } catch (error) {
       console.error('转换PDF失败:', error);
-      alert(`转换PDF失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      let errorMessage = '转换PDF失败';
+      if (error instanceof Error) {
+        errorMessage = `转换失败: ${error.message}`;
+      }
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -562,7 +804,166 @@ ${renderedHtml}
                     width: '100%',
                     position: 'relative'
                   }}
-                  dangerouslySetInnerHTML={{ __html: renderedHtml }}
+                  dangerouslySetInnerHTML={{ 
+                    __html: `
+                      <style>
+                        .markdown-table {
+                          width: 100%;
+                          border-collapse: collapse;
+                          margin: 16px 0;
+                          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                          border-radius: 6px;
+                          overflow: hidden;
+                        }
+                        .markdown-table th,
+                        .markdown-table td {
+                          border: 1px solid #e5e7eb;
+                          padding: 12px 16px;
+                          text-align: left;
+                          line-height: 1.5;
+                        }
+                        .markdown-table th {
+                          background-color: #f8fafc;
+                          font-weight: 600;
+                          color: #374151;
+                        }
+                        .markdown-table tr:nth-child(even) {
+                          background-color: #f9fafb;
+                        }
+                        .markdown-table tr:hover {
+                          background-color: #f3f4f6;
+                        }
+                        .markdown-code {
+                          background-color: #f6f8fa;
+                          border: 1px solid #e1e4e8;
+                          border-radius: 8px;
+                          padding: 20px;
+                          margin: 20px 0;
+                          font-family: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                          font-size: 14px;
+                          line-height: 1.5;
+                          overflow-x: auto;
+                          color: #24292e;
+                        }
+                        .code-wrapper {
+                          margin: 20px 0;
+                          border-radius: 8px;
+                          overflow: hidden;
+                        }
+                        .markdown-blockquote {
+                          border-left: 4px solid #3b82f6;
+                          margin: 20px 0;
+                          padding: 16px 20px;
+                          color: #6b7280;
+                          background-color: #f8fafc;
+                          border-radius: 0 8px 8px 0;
+                          position: relative;
+                        }
+                        .markdown-blockquote::before {
+                          content: '"';
+                          font-size: 3rem;
+                          color: #3b82f6;
+                          position: absolute;
+                          left: -10px;
+                          top: -10px;
+                          opacity: 0.3;
+                        }
+                        .table-wrapper {
+                          overflow-x: auto;
+                          margin: 20px 0;
+                          border-radius: 8px;
+                          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                        }
+                        h1, h2, h3, h4, h5, h6 {
+                          margin-top: 32px;
+                          margin-bottom: 16px;
+                          font-weight: 700;
+                          line-height: 1.3;
+                          color: #1f2937;
+                        }
+                        h1 {
+                          font-size: 2.5rem;
+                          border-bottom: 3px solid #3b82f6;
+                          padding-bottom: 12px;
+                          margin-bottom: 24px;
+                        }
+                        h2 {
+                          font-size: 2rem;
+                          border-bottom: 2px solid #e5e7eb;
+                          padding-bottom: 8px;
+                          margin-bottom: 20px;
+                        }
+                        h3 {
+                          font-size: 1.5rem;
+                          color: #374151;
+                        }
+                        h4 {
+                          font-size: 1.25rem;
+                          color: #4b5563;
+                        }
+                        p {
+                          margin-bottom: 16px;
+                          line-height: 1.7;
+                          color: #374151;
+                          font-size: 16px;
+                        }
+                        ul, ol {
+                          margin: 16px 0;
+                          padding-left: 32px;
+                        }
+                        li {
+                          margin-bottom: 8px;
+                          line-height: 1.6;
+                        }
+                        ul li::marker {
+                          color: #3b82f6;
+                        }
+                        ol li::marker {
+                          color: #3b82f6;
+                          font-weight: 600;
+                        }
+                        a {
+                          color: #3b82f6;
+                          text-decoration: none;
+                          font-weight: 500;
+                        }
+                        a:hover {
+                          text-decoration: underline;
+                          color: #2563eb;
+                        }
+                        code:not(.markdown-code code) {
+                          background-color: #f1f5f9;
+                          padding: 3px 8px;
+                          border-radius: 4px;
+                          font-family: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                          font-size: 0.9em;
+                          color: #e11d48;
+                          border: 1px solid #e2e8f0;
+                        }
+                        hr {
+                          border: none;
+                          border-top: 2px solid #e5e7eb;
+                          margin: 32px 0;
+                        }
+                        strong {
+                          font-weight: 700;
+                          color: #1f2937;
+                        }
+                        em {
+                          font-style: italic;
+                          color: #4b5563;
+                        }
+                        img {
+                          max-width: 100%;
+                          height: auto;
+                          border-radius: 8px;
+                          margin: 20px 0;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                        }
+                      </style>
+                      ${renderedHtml}
+                    ` 
+                  }}
                 />
               </div>
             </div>
@@ -611,8 +1012,8 @@ ${renderedHtml}
 // 清理函数，防止内存泄漏
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
-    if (window.mdInstance) {
-      delete window.mdInstance;
+    if (window.markedInstance) {
+      delete window.markedInstance;
     }
   });
 } 
