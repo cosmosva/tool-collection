@@ -16,17 +16,19 @@ export function TodoApp() {
 		const savedTodos = localStorage.getItem("todos");
 		if (savedTodos) {
 			try {
-				const parsedTodos = JSON.parse(savedTodos).map((todo: {
-					id: string;
-					text: string;
-					completed: boolean;
-					createdAt: string;
-					updatedAt: string;
-				}) => ({
-					...todo,
-					createdAt: new Date(todo.createdAt),
-					updatedAt: new Date(todo.updatedAt),
-				}));
+				const parsedTodos = JSON.parse(savedTodos).map(
+					(todo: {
+						id: string;
+						text: string;
+						completed: boolean;
+						createdAt: string;
+						updatedAt: string;
+					}) => ({
+						...todo,
+						createdAt: new Date(todo.createdAt),
+						updatedAt: new Date(todo.updatedAt),
+					}),
+				);
 				setTodos(parsedTodos);
 			} catch (error) {
 				console.error("Failed to parse todos from localStorage:", error);

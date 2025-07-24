@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { saveAs } from 'file-saver';
+import { saveAs } from "file-saver";
+import { useEffect, useState } from "react";
 
 // 类型声明
 declare global {
-  interface Window {
-    markedInstance?: any;
-  }
+	interface Window {
+		markedInstance?: any;
+	}
 }
 
 const defaultMarkdown = `# Markdown 工具演示
@@ -51,139 +51,148 @@ function hello() {
 `;
 
 export function MarkdownProcessor() {
-  const [markdown, setMarkdown] = useState(defaultMarkdown);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
-  const [renderedHtml, setRenderedHtml] = useState('');
-  const [isMarkdownReady, setIsMarkdownReady] = useState(false);
-  const [fileName, setFileName] = useState('untitled.md');
+	const [markdown, setMarkdown] = useState(defaultMarkdown);
+	const [isLoading, setIsLoading] = useState(false);
+	const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+	const [renderedHtml, setRenderedHtml] = useState("");
+	const [isMarkdownReady, setIsMarkdownReady] = useState(false);
+	const [fileName, setFileName] = useState("untitled.md");
 
-  // 动态加载 marked 并配置
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadMarked = async () => {
-      try {
-        const { marked } = await import('marked');
-        
-        if (!isMounted) return;
-        
-                 // 配置 marked 选项
-         marked.setOptions({
-           breaks: true,
-           gfm: true,
-         });
-        
-                 // 自定义渲染器增强样式
-         const renderer = new marked.Renderer();
-         
-         // 增强表格样式
-         renderer.table = function(header: string, body: string) {
-           return `<div class="table-wrapper">
+	// 动态加载 marked 并配置
+	useEffect(() => {
+		let isMounted = true;
+
+		const loadMarked = async () => {
+			try {
+				const { marked } = await import("marked");
+
+				if (!isMounted) return;
+
+				// 配置 marked 选项
+				marked.setOptions({
+					breaks: true,
+					gfm: true,
+				});
+
+				// 自定义渲染器增强样式
+				const renderer = new marked.Renderer();
+
+				// 增强表格样式
+				renderer.table = (
+					header: string,
+					body: string,
+				) => `<div class="table-wrapper">
              <table class="markdown-table">
                <thead>${header}</thead>
                <tbody>${body}</tbody>
              </table>
            </div>`;
-         };
-         
-         // 增强代码块样式
-         renderer.code = function(code: string, language: string | undefined) {
-           return `<div class="code-wrapper">
-             <pre class="markdown-code"><code class="language-${language || 'text'}">${code}</code></pre>
+
+				// 增强代码块样式
+				renderer.code = (
+					code: string,
+					language: string | undefined,
+				) => `<div class="code-wrapper">
+             <pre class="markdown-code"><code class="language-${language || "text"}">${code}</code></pre>
            </div>`;
-         };
-         
-         // 增强引用样式
-         renderer.blockquote = function(quote: string) {
-           return `<blockquote class="markdown-blockquote">${quote}</blockquote>`;
-         };
-        
-        marked.setOptions({ renderer });
-        
-        const renderedContent = marked(markdown);
-        setRenderedHtml(renderedContent);
-        setIsMarkdownReady(true);
-        
-        // 设置全局 marked 实例
-        if (typeof window !== 'undefined') {
-          (window as any).markedInstance = marked;
-        }
-      } catch (error) {
-        console.error('Failed to load marked:', error);
-        if (isMounted) {
-          setRenderedHtml('<div class="p-4 text-center text-red-600">Markdown 加载失败，请刷新页面重试</div>');
-          setIsMarkdownReady(true);
-        }
-      }
-    };
 
-    loadMarked();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+				// 增强引用样式
+				renderer.blockquote = (quote: string) =>
+					`<blockquote class="markdown-blockquote">${quote}</blockquote>`;
 
-  // 当 markdown 内容变化时重新渲染
-  useEffect(() => {
-    if (isMarkdownReady && typeof window !== 'undefined' && (window as any).markedInstance) {
-      try {
-        const renderedContent = (window as any).markedInstance(markdown);
-        setRenderedHtml(renderedContent);
-      } catch (error) {
-        console.error('Rendering error:', error);
-        setRenderedHtml('<div class="p-4 text-center text-red-600">渲染失败</div>');
-      }
-    }
-  }, [markdown, isMarkdownReady]);
+				marked.setOptions({ renderer });
 
-  // 处理文件上传
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+				const renderedContent = marked(markdown);
+				setRenderedHtml(renderedContent);
+				setIsMarkdownReady(true);
 
-    // 检查文件类型
-    if (!file.name.endsWith('.md') && !file.name.endsWith('.txt')) {
-      alert('请选择 .md 或 .txt 文件');
-      return;
-    }
+				// 设置全局 marked 实例
+				if (typeof window !== "undefined") {
+					(window as any).markedInstance = marked;
+				}
+			} catch (error) {
+				console.error("Failed to load marked:", error);
+				if (isMounted) {
+					setRenderedHtml(
+						'<div class="p-4 text-center text-red-600">Markdown 加载失败，请刷新页面重试</div>',
+					);
+					setIsMarkdownReady(true);
+				}
+			}
+		};
 
-    setFileName(file.name);
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      setMarkdown(content);
-    };
-    
-    reader.onerror = () => {
-      alert('文件读取失败，请重试');
-    };
-    
-    reader.readAsText(file, 'UTF-8');
-  };
+		loadMarked();
 
-  // 保存为 MD 文件
-  const saveAsMarkdown = () => {
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-    saveAs(blob, fileName);
-  };
+		return () => {
+			isMounted = false;
+		};
+	}, []);
 
-  // 新建文档
-  const createNewDocument = () => {
-    if (markdown !== defaultMarkdown && markdown.trim() !== '') {
-      if (!confirm('当前文档未保存，确定要新建文档吗？')) {
-        return;
-      }
-    }
-    setMarkdown(defaultMarkdown);
-    setFileName('untitled.md');
-  };
+	// 当 markdown 内容变化时重新渲染
+	useEffect(() => {
+		if (
+			isMarkdownReady &&
+			typeof window !== "undefined" &&
+			(window as any).markedInstance
+		) {
+			try {
+				const renderedContent = (window as any).markedInstance(markdown);
+				setRenderedHtml(renderedContent);
+			} catch (error) {
+				console.error("Rendering error:", error);
+				setRenderedHtml(
+					'<div class="p-4 text-center text-red-600">渲染失败</div>',
+				);
+			}
+		}
+	}, [markdown, isMarkdownReady]);
 
-  // 转换为 HTML
-  const convertToHtml = () => {
-    const fullHtml = `<!DOCTYPE html>
+	// 处理文件上传
+	const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+
+		// 检查文件类型
+		if (!file.name.endsWith(".md") && !file.name.endsWith(".txt")) {
+			alert("请选择 .md 或 .txt 文件");
+			return;
+		}
+
+		setFileName(file.name);
+		const reader = new FileReader();
+
+		reader.onload = (e) => {
+			const content = e.target?.result as string;
+			setMarkdown(content);
+		};
+
+		reader.onerror = () => {
+			alert("文件读取失败，请重试");
+		};
+
+		reader.readAsText(file, "UTF-8");
+	};
+
+	// 保存为 MD 文件
+	const saveAsMarkdown = () => {
+		const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+		saveAs(blob, fileName);
+	};
+
+	// 新建文档
+	const createNewDocument = () => {
+		if (markdown !== defaultMarkdown && markdown.trim() !== "") {
+			if (!confirm("当前文档未保存，确定要新建文档吗？")) {
+				return;
+			}
+		}
+		setMarkdown(defaultMarkdown);
+		setFileName("untitled.md");
+	};
+
+	// 转换为 HTML
+	const convertToHtml = () => {
+		const fullHtml = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -209,14 +218,14 @@ export function MarkdownProcessor() {
 ${renderedHtml}
 </body>
 </html>`;
-    
-    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
-    saveAs(blob, 'markdown-document.html');
-  };
 
-  // 转换为 Word
-  const convertToWord = () => {
-    const wordHtml = `<!DOCTYPE html>
+		const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
+		saveAs(blob, "markdown-document.html");
+	};
+
+	// 转换为 Word
+	const convertToWord = () => {
+		const wordHtml = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
 <head>
   <meta charset="utf-8">
@@ -236,68 +245,70 @@ ${renderedHtml}
 ${renderedHtml}
 </body>
 </html>`;
-    
-    const blob = new Blob([wordHtml], { 
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-    });
-    saveAs(blob, 'markdown-document.doc');
-  };
 
-  // 转换为 Excel
-  const convertToExcel = () => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(renderedHtml, 'text/html');
-    const tables = doc.querySelectorAll('table');
-    
-    if (tables.length === 0) {
-      alert('文档中没有找到表格数据，无法转换为 Excel 格式');
-      return;
-    }
+		const blob = new Blob([wordHtml], {
+			type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		});
+		saveAs(blob, "markdown-document.doc");
+	};
 
-    let csvContent = '\uFEFF'; // UTF-8 BOM for Excel
-    tables.forEach((table, index) => {
-      if (index > 0) csvContent += '\n\n';
-      csvContent += `表格 ${index + 1}\n`;
-      
-      const rows = table.querySelectorAll('tr');
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('th, td');
-        const rowData = Array.from(cells).map(cell => {
-          const text = cell.textContent?.trim() || '';
-          return `"${text.replace(/"/g, '""')}"`;
-        }).join(',');
-        csvContent += rowData + '\n';
-      });
-    });
+	// 转换为 Excel
+	const convertToExcel = () => {
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(renderedHtml, "text/html");
+		const tables = doc.querySelectorAll("table");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
-    saveAs(blob, 'markdown-tables.csv');
-  };
+		if (tables.length === 0) {
+			alert("文档中没有找到表格数据，无法转换为 Excel 格式");
+			return;
+		}
 
-  // 转换为图片
-  const convertToImage = async () => {
-    setIsLoading(true);
-    try {
-      const { default: html2canvas } = await import('html2canvas');
-      const previewElement = document.getElementById('markdown-preview');
-      
-      if (!previewElement) {
-        alert('预览区域未找到，请确保页面已完全加载');
-        return;
-      }
+		let csvContent = "\uFEFF"; // UTF-8 BOM for Excel
+		tables.forEach((table, index) => {
+			if (index > 0) csvContent += "\n\n";
+			csvContent += `表格 ${index + 1}\n`;
 
-      // 确保内容已渲染
-      if (!previewElement.innerHTML.trim() || previewElement.innerHTML === '') {
-        alert('预览内容为空，请先输入一些 Markdown 内容');
-        return;
-      }
+			const rows = table.querySelectorAll("tr");
+			rows.forEach((row) => {
+				const cells = row.querySelectorAll("th, td");
+				const rowData = Array.from(cells)
+					.map((cell) => {
+						const text = cell.textContent?.trim() || "";
+						return `"${text.replace(/"/g, '""')}"`;
+					})
+					.join(",");
+				csvContent += rowData + "\n";
+			});
+		});
 
-      // 等待一下确保渲染完成
-      await new Promise(resolve => setTimeout(resolve, 500));
+		const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+		saveAs(blob, "markdown-tables.csv");
+	};
 
-      // 创建一个临时的渲染容器，避免背景渐变等样式干扰
-      const tempContainer = document.createElement('div');
-      tempContainer.style.cssText = `
+	// 转换为图片
+	const convertToImage = async () => {
+		setIsLoading(true);
+		try {
+			const { default: html2canvas } = await import("html2canvas");
+			const previewElement = document.getElementById("markdown-preview");
+
+			if (!previewElement) {
+				alert("预览区域未找到，请确保页面已完全加载");
+				return;
+			}
+
+			// 确保内容已渲染
+			if (!previewElement.innerHTML.trim() || previewElement.innerHTML === "") {
+				alert("预览内容为空，请先输入一些 Markdown 内容");
+				return;
+			}
+
+			// 等待一下确保渲染完成
+			await new Promise((resolve) => setTimeout(resolve, 500));
+
+			// 创建一个临时的渲染容器，避免背景渐变等样式干扰
+			const tempContainer = document.createElement("div");
+			tempContainer.style.cssText = `
         position: absolute;
         top: -9999px;
         left: -9999px;
@@ -311,120 +322,118 @@ ${renderedHtml}
         border: none;
         box-shadow: none;
       `;
-      tempContainer.innerHTML = previewElement.innerHTML;
-      document.body.appendChild(tempContainer);
+			tempContainer.innerHTML = previewElement.innerHTML;
+			document.body.appendChild(tempContainer);
 
-      try {
-        const canvas = await html2canvas(tempContainer, {
-          backgroundColor: '#ffffff',
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          foreignObjectRendering: false,
-          logging: false,
-          scrollX: 0,
-          scrollY: 0,
-          windowWidth: tempContainer.offsetWidth,
-          windowHeight: tempContainer.offsetHeight,
-          // 禁用一些可能导致问题的功能
-          imageTimeout: 15000,
-          removeContainer: true,
-          // 添加自定义过滤器，跳过有问题的样式
-          ignoreElements: (element) => {
-            // 跳过可能包含渐变的元素
-            const style = window.getComputedStyle(element);
-            if (style.background && style.background.includes('gradient')) {
-              return true;
-            }
-            return false;
-          },
-          onclone: (clonedDoc) => {
-            // 在克隆的文档中移除所有渐变背景
-            const elementsWithGradient = clonedDoc.querySelectorAll('*');
-            elementsWithGradient.forEach(el => {
-              const style = window.getComputedStyle(el);
-              if (style.background && style.background.includes('gradient')) {
-                (el as HTMLElement).style.background = 'white';
-              }
-            });
-          }
-        });
+			try {
+				const canvas = await html2canvas(tempContainer, {
+					backgroundColor: "#ffffff",
+					scale: 2,
+					useCORS: true,
+					allowTaint: false,
+					foreignObjectRendering: false,
+					logging: false,
+					scrollX: 0,
+					scrollY: 0,
+					windowWidth: tempContainer.offsetWidth,
+					windowHeight: tempContainer.offsetHeight,
+					// 禁用一些可能导致问题的功能
+					imageTimeout: 15000,
+					removeContainer: true,
+					// 添加自定义过滤器，跳过有问题的样式
+					ignoreElements: (element) => {
+						// 跳过可能包含渐变的元素
+						const style = window.getComputedStyle(element);
+						if (style.background && style.background.includes("gradient")) {
+							return true;
+						}
+						return false;
+					},
+					onclone: (clonedDoc) => {
+						// 在克隆的文档中移除所有渐变背景
+						const elementsWithGradient = clonedDoc.querySelectorAll("*");
+						elementsWithGradient.forEach((el) => {
+							const style = window.getComputedStyle(el);
+							if (style.background && style.background.includes("gradient")) {
+								(el as HTMLElement).style.background = "white";
+							}
+						});
+					},
+				});
 
-        if (canvas.width === 0 || canvas.height === 0) {
-          alert('无法生成图片，请检查预览内容是否正常显示');
-          return;
-        }
+				if (canvas.width === 0 || canvas.height === 0) {
+					alert("无法生成图片，请检查预览内容是否正常显示");
+					return;
+				}
 
-        canvas.toBlob((blob) => {
-          if (blob) {
-            saveAs(blob, `${fileName.replace(/\.md$/, '')}.png`);
-          } else {
-            alert('图片生成失败，请重试');
-          }
-        }, 'image/png');
-        
-      } finally {
-        // 清理临时容器
-        document.body.removeChild(tempContainer);
-      }
-      
-    } catch (error) {
-      console.error('转换图片失败:', error);
-      // 提供更详细的错误信息
-      let errorMessage = '转换图片失败';
-      if (error instanceof Error) {
-        if (error.message.includes('addColorStop')) {
-          errorMessage = '页面样式中包含无效的渐变，已修复此问题，请重试';
-        } else if (error.message.includes('non-finite')) {
-          errorMessage = '页面包含无效的数值，已优化处理逻辑，请重试';
-        } else {
-          errorMessage = `转换失败: ${error.message}`;
-        }
-      }
-      alert(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+				canvas.toBlob((blob) => {
+					if (blob) {
+						saveAs(blob, `${fileName.replace(/\.md$/, "")}.png`);
+					} else {
+						alert("图片生成失败，请重试");
+					}
+				}, "image/png");
+			} finally {
+				// 清理临时容器
+				document.body.removeChild(tempContainer);
+			}
+		} catch (error) {
+			console.error("转换图片失败:", error);
+			// 提供更详细的错误信息
+			let errorMessage = "转换图片失败";
+			if (error instanceof Error) {
+				if (error.message.includes("addColorStop")) {
+					errorMessage = "页面样式中包含无效的渐变，已修复此问题，请重试";
+				} else if (error.message.includes("non-finite")) {
+					errorMessage = "页面包含无效的数值，已优化处理逻辑，请重试";
+				} else {
+					errorMessage = `转换失败: ${error.message}`;
+				}
+			}
+			alert(errorMessage);
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
-  // 转换为 PDF
-  const convertToPdf = async () => {
-    setIsLoading(true);
-    try {
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf')
-      ]);
-      
-      const previewElement = document.getElementById('markdown-preview');
-      if (!previewElement) {
-        alert('预览区域未找到，请确保页面已完全加载');
-        return;
-      }
+	// 转换为 PDF
+	const convertToPdf = async () => {
+		setIsLoading(true);
+		try {
+			const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+				import("html2canvas"),
+				import("jspdf"),
+			]);
 
-      // 确保内容已渲染
-      if (!previewElement.innerHTML.trim() || previewElement.innerHTML === '') {
-        alert('预览内容为空，请先输入一些 Markdown 内容');
-        return;
-      }
+			const previewElement = document.getElementById("markdown-preview");
+			if (!previewElement) {
+				alert("预览区域未找到，请确保页面已完全加载");
+				return;
+			}
 
-      // 获取预览区域的父容器并临时修改样式
-      const previewContainer = previewElement.parentElement;
-      if (!previewContainer) {
-        alert('无法获取预览容器');
-        return;
-      }
+			// 确保内容已渲染
+			if (!previewElement.innerHTML.trim() || previewElement.innerHTML === "") {
+				alert("预览内容为空，请先输入一些 Markdown 内容");
+				return;
+			}
 
-      // 保存原始样式
-      const originalStyles = {
-        overflow: previewContainer.style.overflow,
-        height: previewContainer.style.height,
-        maxHeight: previewContainer.style.maxHeight
-      };
+			// 获取预览区域的父容器并临时修改样式
+			const previewContainer = previewElement.parentElement;
+			if (!previewContainer) {
+				alert("无法获取预览容器");
+				return;
+			}
 
-      // 创建一个完整内容的容器
-      const fullContentContainer = document.createElement('div');
-      fullContentContainer.style.cssText = `
+			// 保存原始样式
+			const originalStyles = {
+				overflow: previewContainer.style.overflow,
+				height: previewContainer.style.height,
+				maxHeight: previewContainer.style.maxHeight,
+			};
+
+			// 创建一个完整内容的容器
+			const fullContentContainer = document.createElement("div");
+			fullContentContainer.style.cssText = `
         position: absolute;
         left: -99999px;
         top: 0;
@@ -436,10 +445,10 @@ ${renderedHtml}
         color: #333;
         box-sizing: border-box;
       `;
-      
-      // 添加CSS规则来控制分页
-      const styleSheet = document.createElement('style');
-      styleSheet.textContent = `
+
+			// 添加CSS规则来控制分页
+			const styleSheet = document.createElement("style");
+			styleSheet.textContent = `
         .pdf-content p { 
           orphans: 3;
           widows: 3;
@@ -463,42 +472,42 @@ ${renderedHtml}
           page-break-inside: avoid;
         }
       `;
-      document.head.appendChild(styleSheet);
-      
-      fullContentContainer.className = 'pdf-content';
-      fullContentContainer.innerHTML = previewElement.innerHTML;
-      document.body.appendChild(fullContentContainer);
+			document.head.appendChild(styleSheet);
 
-      try {
-        // 等待内容完全渲染
-        await new Promise(resolve => setTimeout(resolve, 300));
+			fullContentContainer.className = "pdf-content";
+			fullContentContainer.innerHTML = previewElement.innerHTML;
+			document.body.appendChild(fullContentContainer);
 
-        // 获取所有内容的总高度
-        const totalHeight = fullContentContainer.scrollHeight;
-        console.log('总内容高度:', totalHeight);
+			try {
+				// 等待内容完全渲染
+				await new Promise((resolve) => setTimeout(resolve, 300));
 
-        // 创建PDF
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pageHeightPx = 1122; // A4高度的像素值
-        const pdfPageHeight = 297; // A4高度mm
-        const pdfPageWidth = 210; // A4宽度mm
-        const margin = 20;
-        const contentWidth = pdfPageWidth - (margin * 2);
-        const contentHeight = pdfPageHeight - (margin * 2);
+				// 获取所有内容的总高度
+				const totalHeight = fullContentContainer.scrollHeight;
+				console.log("总内容高度:", totalHeight);
 
-        // 计算需要的页数
-        const totalPages = Math.ceil(totalHeight / pageHeightPx);
-        console.log('需要页数:', totalPages);
+				// 创建PDF
+				const pdf = new jsPDF("p", "mm", "a4");
+				const pageHeightPx = 1122; // A4高度的像素值
+				const pdfPageHeight = 297; // A4高度mm
+				const pdfPageWidth = 210; // A4宽度mm
+				const margin = 20;
+				const contentWidth = pdfPageWidth - margin * 2;
+				const contentHeight = pdfPageHeight - margin * 2;
 
-        // 分页渲染
-        for (let page = 0; page < totalPages; page++) {
-          if (page > 0) {
-            pdf.addPage();
-          }
+				// 计算需要的页数
+				const totalPages = Math.ceil(totalHeight / pageHeightPx);
+				console.log("需要页数:", totalPages);
 
-          // 创建当前页的容器
-          const pageContainer = document.createElement('div');
-          pageContainer.style.cssText = `
+				// 分页渲染
+				for (let page = 0; page < totalPages; page++) {
+					if (page > 0) {
+						pdf.addPage();
+					}
+
+					// 创建当前页的容器
+					const pageContainer = document.createElement("div");
+					pageContainer.style.cssText = `
             position: fixed;
             left: -99999px;
             top: 0;
@@ -508,17 +517,17 @@ ${renderedHtml}
             background: white;
           `;
 
-          // 计算页面偏移，添加一些微调避免文字被切断
-          let pageOffset = page * pageHeightPx;
-          
-          // 如果不是第一页，稍微向上调整以避免切断行
-          if (page > 0) {
-            pageOffset -= 20; // 向上偏移20px，大约一行文字的高度
-          }
+					// 计算页面偏移，添加一些微调避免文字被切断
+					let pageOffset = page * pageHeightPx;
 
-          // 创建内容包装器，用于定位
-          const contentWrapper = document.createElement('div');
-          contentWrapper.style.cssText = `
+					// 如果不是第一页，稍微向上调整以避免切断行
+					if (page > 0) {
+						pageOffset -= 20; // 向上偏移20px，大约一行文字的高度
+					}
+
+					// 创建内容包装器，用于定位
+					const contentWrapper = document.createElement("div");
+					contentWrapper.style.cssText = `
             position: relative;
             top: ${-pageOffset}px;
             padding: 40px;
@@ -526,286 +535,336 @@ ${renderedHtml}
             line-height: 1.6;
             color: #333;
           `;
-          contentWrapper.className = 'pdf-content';
-          contentWrapper.innerHTML = previewElement.innerHTML;
-          
-          pageContainer.appendChild(contentWrapper);
-          document.body.appendChild(pageContainer);
+					contentWrapper.className = "pdf-content";
+					contentWrapper.innerHTML = previewElement.innerHTML;
 
-          // 等待渲染
-          await new Promise(resolve => setTimeout(resolve, 100));
+					pageContainer.appendChild(contentWrapper);
+					document.body.appendChild(pageContainer);
 
-          try {
-            // 在渲染前检查页面底部是否有被切断的元素
-            const allElements = contentWrapper.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, td, pre, blockquote');
-            allElements.forEach(element => {
-              const rect = element.getBoundingClientRect();
-              const containerRect = pageContainer.getBoundingClientRect();
-              const elementBottom = rect.bottom - containerRect.top;
-              const elementTop = rect.top - containerRect.top;
-              const elementHeight = rect.height;
-              
-              // 如果元素跨越页面边界
-              if (elementTop < pageHeightPx && elementBottom > pageHeightPx) {
-                // 计算元素在当前页面内的比例
-                const visibleHeight = pageHeightPx - elementTop;
-                const visibleRatio = visibleHeight / elementHeight;
-                
-                // 如果元素在当前页面显示不到30%，隐藏它让它完整显示在下一页
-                if (visibleRatio < 0.3) {
-                  (element as HTMLElement).style.visibility = 'hidden';
-                }
-                // 如果元素在当前页面显示超过70%，尝试调整行高来避免最后一行被切断
-                else if (visibleRatio > 0.7 && element.tagName === 'P') {
-                  // 获取行高
-                  const lineHeight = parseFloat(window.getComputedStyle(element).lineHeight);
-                  const lines = Math.floor(elementHeight / lineHeight);
-                  const visibleLines = Math.floor(visibleHeight / lineHeight);
-                  
-                  // 如果最后一行可能被切断，稍微减少行高
-                  if (visibleLines < lines) {
-                    (element as HTMLElement).style.lineHeight = `${lineHeight * 0.95}px`;
-                  }
-                }
-              }
-            });
+					// 等待渲染
+					await new Promise((resolve) => setTimeout(resolve, 100));
 
-            // 使用html2canvas捕获当前页
-            const canvas = await html2canvas(pageContainer, {
-              backgroundColor: '#ffffff',
-              scale: 2,
-              useCORS: true,
-              allowTaint: false,
-              logging: false,
-              windowWidth: 794,
-              windowHeight: pageHeightPx
-            });
+					try {
+						// 在渲染前检查页面底部是否有被切断的元素
+						const allElements = contentWrapper.querySelectorAll(
+							"p, li, h1, h2, h3, h4, h5, h6, td, pre, blockquote",
+						);
+						allElements.forEach((element) => {
+							const rect = element.getBoundingClientRect();
+							const containerRect = pageContainer.getBoundingClientRect();
+							const elementBottom = rect.bottom - containerRect.top;
+							const elementTop = rect.top - containerRect.top;
+							const elementHeight = rect.height;
 
-            // 添加到PDF
-            const imgData = canvas.toDataURL('image/png');
-            pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
+							// 如果元素跨越页面边界
+							if (elementTop < pageHeightPx && elementBottom > pageHeightPx) {
+								// 计算元素在当前页面内的比例
+								const visibleHeight = pageHeightPx - elementTop;
+								const visibleRatio = visibleHeight / elementHeight;
 
-          } finally {
-            // 清理当前页容器
-            document.body.removeChild(pageContainer);
-          }
-        }
+								// 如果元素在当前页面显示不到30%，隐藏它让它完整显示在下一页
+								if (visibleRatio < 0.3) {
+									(element as HTMLElement).style.visibility = "hidden";
+								}
+								// 如果元素在当前页面显示超过70%，尝试调整行高来避免最后一行被切断
+								else if (visibleRatio > 0.7 && element.tagName === "P") {
+									// 获取行高
+									const lineHeight = Number.parseFloat(
+										window.getComputedStyle(element).lineHeight,
+									);
+									const lines = Math.floor(elementHeight / lineHeight);
+									const visibleLines = Math.floor(visibleHeight / lineHeight);
 
-        // 保存PDF
-        pdf.save(`${fileName.replace(/\.md$/, '')}.pdf`);
-        
-      } finally {
-        // 清理临时容器和样式
-        document.body.removeChild(fullContentContainer);
-        document.head.removeChild(styleSheet);
-        
-        // 恢复原始样式
-        if (originalStyles.overflow) previewContainer.style.overflow = originalStyles.overflow;
-        if (originalStyles.height) previewContainer.style.height = originalStyles.height;
-        if (originalStyles.maxHeight) previewContainer.style.maxHeight = originalStyles.maxHeight;
-      }
-      
-    } catch (error) {
-      console.error('转换PDF失败:', error);
-      let errorMessage = '转换PDF失败';
-      if (error instanceof Error) {
-        errorMessage = `转换失败: ${error.message}`;
-      }
-      alert(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+									// 如果最后一行可能被切断，稍微减少行高
+									if (visibleLines < lines) {
+										(element as HTMLElement).style.lineHeight =
+											`${lineHeight * 0.95}px`;
+									}
+								}
+							}
+						});
 
-  // 调试功能 - 检查预览区域
-  const debugPreview = () => {
-    const previewElement = document.getElementById('markdown-preview');
-    if (!previewElement) {
-      alert('预览区域未找到');
-      return;
-    }
-    
-    console.log('预览区域信息:', {
-      innerHTML: previewElement.innerHTML.substring(0, 200) + '...',
-      scrollHeight: previewElement.scrollHeight,
-      scrollWidth: previewElement.scrollWidth,
-      clientHeight: previewElement.clientHeight,
-      clientWidth: previewElement.clientWidth,
-      offsetHeight: previewElement.offsetHeight,
-      offsetWidth: previewElement.offsetWidth,
-      computedStyle: window.getComputedStyle(previewElement),
-    });
-    
-    alert(`预览区域尺寸: ${previewElement.offsetWidth}x${previewElement.offsetHeight}, 内容长度: ${previewElement.innerHTML.length}`);
-  };
+						// 使用html2canvas捕获当前页
+						const canvas = await html2canvas(pageContainer, {
+							backgroundColor: "#ffffff",
+							scale: 2,
+							useCORS: true,
+							allowTaint: false,
+							logging: false,
+							windowWidth: 794,
+							windowHeight: pageHeightPx,
+						});
 
-  const exportButtons = [
-    { label: '保存MD', action: saveAsMarkdown, icon: '💾', color: 'bg-gray-500 hover:bg-gray-600' },
-    { label: 'HTML', action: convertToHtml, icon: '🌐', color: 'bg-blue-500 hover:bg-blue-600' },
-    { label: 'Word', action: convertToWord, icon: '📄', color: 'bg-indigo-500 hover:bg-indigo-600' },
-    { label: 'Excel', action: convertToExcel, icon: '📊', color: 'bg-green-500 hover:bg-green-600' },
-    { label: '图片', action: convertToImage, icon: '🖼️', color: 'bg-pink-500 hover:bg-pink-600' },
-    { label: 'PDF', action: convertToPdf, icon: '📑', color: 'bg-red-500 hover:bg-red-600' },
-    { label: '调试', action: debugPreview, icon: '🔍', color: 'bg-yellow-500 hover:bg-yellow-600' },
-  ];
+						// 添加到PDF
+						const imgData = canvas.toDataURL("image/png");
+						pdf.addImage(
+							imgData,
+							"PNG",
+							margin,
+							margin,
+							contentWidth,
+							contentHeight,
+						);
+					} finally {
+						// 清理当前页容器
+						document.body.removeChild(pageContainer);
+					}
+				}
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* 标题 */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            📝 Markdown 工具
-          </h1>
-          <p className="text-gray-600">强大的 Markdown 文档处理与转换工具</p>
-        </div>
+				// 保存PDF
+				pdf.save(`${fileName.replace(/\.md$/, "")}.pdf`);
+			} finally {
+				// 清理临时容器和样式
+				document.body.removeChild(fullContentContainer);
+				document.head.removeChild(styleSheet);
 
-        {/* 文件操作区域 */}
-        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex flex-wrap gap-3 justify-center items-center">
-            {/* 文件上传 */}
-            <div className="relative">
-              <input
-                type="file"
-                id="file-upload"
-                accept=".md,.txt"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <label
-                htmlFor="file-upload"
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
-              >
-                <span className="text-lg">📁</span>
-                上传文件
-              </label>
-            </div>
+				// 恢复原始样式
+				if (originalStyles.overflow)
+					previewContainer.style.overflow = originalStyles.overflow;
+				if (originalStyles.height)
+					previewContainer.style.height = originalStyles.height;
+				if (originalStyles.maxHeight)
+					previewContainer.style.maxHeight = originalStyles.maxHeight;
+			}
+		} catch (error) {
+			console.error("转换PDF失败:", error);
+			let errorMessage = "转换PDF失败";
+			if (error instanceof Error) {
+				errorMessage = `转换失败: ${error.message}`;
+			}
+			alert(errorMessage);
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
-            {/* 新建文档 */}
-            <button
-              type="button"
-              onClick={createNewDocument}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-            >
-              <span className="text-lg">📝</span>
-              新建文档
-            </button>
+	// 调试功能 - 检查预览区域
+	const debugPreview = () => {
+		const previewElement = document.getElementById("markdown-preview");
+		if (!previewElement) {
+			alert("预览区域未找到");
+			return;
+		}
 
-            {/* 当前文件名 */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-              <span className="text-sm text-gray-600">当前文件:</span>
-              <input
-                type="text"
-                value={fileName}
-                onChange={(e) => setFileName(e.target.value)}
-                className="text-sm font-mono bg-transparent border-none outline-none text-gray-800 min-w-0 flex-1"
-                placeholder="文件名.md"
-              />
-            </div>
-          </div>
-        </div>
+		console.log("预览区域信息:", {
+			innerHTML: previewElement.innerHTML.substring(0, 200) + "...",
+			scrollHeight: previewElement.scrollHeight,
+			scrollWidth: previewElement.scrollWidth,
+			clientHeight: previewElement.clientHeight,
+			clientWidth: previewElement.clientWidth,
+			offsetHeight: previewElement.offsetHeight,
+			offsetWidth: previewElement.offsetWidth,
+			computedStyle: window.getComputedStyle(previewElement),
+		});
 
-        {/* 导出按钮 */}
-        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="text-center mb-3">
-            <h3 className="text-sm font-medium text-gray-700">导出格式</h3>
-          </div>
-          <div className="flex flex-wrap gap-3 justify-center">
-            {exportButtons.map((button) => (
-              <button
-                key={button.label}
-                type="button"
-                onClick={button.action}
-                disabled={isLoading || !isMarkdownReady}
-                className={`
-                  flex items-center gap-2 px-4 py-2 text-white rounded-lg font-medium
-                  transition-all duration-200 hover:scale-105 active:scale-95
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  ${button.color}
+		alert(
+			`预览区域尺寸: ${previewElement.offsetWidth}x${previewElement.offsetHeight}, 内容长度: ${previewElement.innerHTML.length}`,
+		);
+	};
+
+	const exportButtons = [
+		{
+			label: "保存MD",
+			action: saveAsMarkdown,
+			icon: "💾",
+			color: "bg-gray-500 hover:bg-gray-600",
+		},
+		{
+			label: "HTML",
+			action: convertToHtml,
+			icon: "🌐",
+			color: "bg-blue-500 hover:bg-blue-600",
+		},
+		{
+			label: "Word",
+			action: convertToWord,
+			icon: "📄",
+			color: "bg-indigo-500 hover:bg-indigo-600",
+		},
+		{
+			label: "Excel",
+			action: convertToExcel,
+			icon: "📊",
+			color: "bg-green-500 hover:bg-green-600",
+		},
+		{
+			label: "图片",
+			action: convertToImage,
+			icon: "🖼️",
+			color: "bg-pink-500 hover:bg-pink-600",
+		},
+		{
+			label: "PDF",
+			action: convertToPdf,
+			icon: "📑",
+			color: "bg-red-500 hover:bg-red-600",
+		},
+		{
+			label: "调试",
+			action: debugPreview,
+			icon: "🔍",
+			color: "bg-yellow-500 hover:bg-yellow-600",
+		},
+	];
+
+	return (
+		<div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
+			<div className="container mx-auto max-w-7xl px-4 py-8">
+				{/* 标题 */}
+				<div className="mb-8 text-center">
+					<h1 className="mb-2 font-bold text-4xl text-gray-800">
+						📝 Markdown 工具
+					</h1>
+					<p className="text-gray-600">强大的 Markdown 文档处理与转换工具</p>
+				</div>
+
+				{/* 文件操作区域 */}
+				<div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+					<div className="flex flex-wrap items-center justify-center gap-3">
+						{/* 文件上传 */}
+						<div className="relative">
+							<input
+								type="file"
+								id="file-upload"
+								accept=".md,.txt"
+								onChange={handleFileUpload}
+								className="hidden"
+							/>
+							<label
+								htmlFor="file-upload"
+								className="flex cursor-pointer items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-emerald-600 active:scale-95"
+							>
+								<span className="text-lg">📁</span>
+								上传文件
+							</label>
+						</div>
+
+						{/* 新建文档 */}
+						<button
+							type="button"
+							onClick={createNewDocument}
+							className="flex items-center gap-2 rounded-lg bg-slate-500 px-4 py-2 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-slate-600 active:scale-95"
+						>
+							<span className="text-lg">📝</span>
+							新建文档
+						</button>
+
+						{/* 当前文件名 */}
+						<div className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2">
+							<span className="text-gray-600 text-sm">当前文件:</span>
+							<input
+								type="text"
+								value={fileName}
+								onChange={(e) => setFileName(e.target.value)}
+								className="min-w-0 flex-1 border-none bg-transparent font-mono text-gray-800 text-sm outline-none"
+								placeholder="文件名.md"
+							/>
+						</div>
+					</div>
+				</div>
+
+				{/* 导出按钮 */}
+				<div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+					<div className="mb-3 text-center">
+						<h3 className="font-medium text-gray-700 text-sm">导出格式</h3>
+					</div>
+					<div className="flex flex-wrap justify-center gap-3">
+						{exportButtons.map((button) => (
+							<button
+								key={button.label}
+								type="button"
+								onClick={button.action}
+								disabled={isLoading || !isMarkdownReady}
+								className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium text-white transition-all duration-200 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${button.color}
                 `}
-              >
-                <span className="text-lg">{button.icon}</span>
-                {button.label}
-                {isLoading && (button.label === '图片' || button.label === 'PDF') && (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-1" />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+							>
+								<span className="text-lg">{button.icon}</span>
+								{button.label}
+								{isLoading &&
+									(button.label === "图片" || button.label === "PDF") && (
+										<div className="ml-1 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+									)}
+							</button>
+						))}
+					</div>
+				</div>
 
-        {/* 移动端标签切换 */}
-        <div className="md:hidden mb-4">
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab('edit')}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                activeTab === 'edit'
-                  ? 'bg-white text-purple-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              编辑器
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('preview')}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                activeTab === 'preview'
-                  ? 'bg-white text-purple-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              预览
-            </button>
-          </div>
-        </div>
+				{/* 移动端标签切换 */}
+				<div className="mb-4 md:hidden">
+					<div className="flex rounded-lg bg-gray-100 p-1">
+						<button
+							type="button"
+							onClick={() => setActiveTab("edit")}
+							className={`flex-1 rounded-md px-4 py-2 font-medium transition-colors ${
+								activeTab === "edit"
+									? "bg-white text-purple-600 shadow-sm"
+									: "text-gray-600 hover:text-gray-800"
+							}`}
+						>
+							编辑器
+						</button>
+						<button
+							type="button"
+							onClick={() => setActiveTab("preview")}
+							className={`flex-1 rounded-md px-4 py-2 font-medium transition-colors ${
+								activeTab === "preview"
+									? "bg-white text-purple-600 shadow-sm"
+									: "text-gray-600 hover:text-gray-800"
+							}`}
+						>
+							预览
+						</button>
+					</div>
+				</div>
 
-        {/* 编辑器和预览区域 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* 编辑器 */}
-          <div className={`${activeTab === 'edit' ? 'block' : 'hidden'} md:block`}>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[600px] flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <h3 className="font-semibold text-gray-800">Markdown 编辑器</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span>字符数: {markdown.length}</span>
-                  <span>•</span>
-                  <span>行数: {markdown.split('\n').length}</span>
-                </div>
-              </div>
-              <textarea
-                value={markdown}
-                onChange={(e) => setMarkdown(e.target.value)}
-                className="flex-1 p-4 resize-none border-none outline-none font-mono text-sm leading-relaxed"
-                placeholder="在这里输入 Markdown 内容，或使用上方的【上传文件】按钮加载 .md 文件..."
-                spellCheck={false}
-              />
-            </div>
-          </div>
+				{/* 编辑器和预览区域 */}
+				<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+					{/* 编辑器 */}
+					<div
+						className={`${activeTab === "edit" ? "block" : "hidden"} md:block`}
+					>
+						<div className="flex h-[600px] flex-col rounded-xl border border-gray-200 bg-white shadow-sm">
+							<div className="flex items-center justify-between border-gray-200 border-b p-4">
+								<h3 className="font-semibold text-gray-800">Markdown 编辑器</h3>
+								<div className="flex items-center gap-2 text-gray-500 text-sm">
+									<span>字符数: {markdown.length}</span>
+									<span>•</span>
+									<span>行数: {markdown.split("\n").length}</span>
+								</div>
+							</div>
+							<textarea
+								value={markdown}
+								onChange={(e) => setMarkdown(e.target.value)}
+								className="flex-1 resize-none border-none p-4 font-mono text-sm leading-relaxed outline-none"
+								placeholder="在这里输入 Markdown 内容，或使用上方的【上传文件】按钮加载 .md 文件..."
+								spellCheck={false}
+							/>
+						</div>
+					</div>
 
-          {/* 预览区域 */}
-          <div className={`${activeTab === 'preview' ? 'block' : 'hidden'} md:block`}>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[600px] flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <h3 className="font-semibold text-gray-800">预览效果</h3>
-                <span className="text-sm text-gray-500">
-                  {isMarkdownReady ? '实时渲染' : '加载中...'}
-                </span>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <div 
-                  id="markdown-preview"
-                  className="p-6 markdown-body min-h-full"
-                  style={{ 
-                    backgroundColor: '#ffffff',
-                    minHeight: '100%',
-                    width: '100%',
-                    position: 'relative'
-                  }}
-                  dangerouslySetInnerHTML={{ 
-                    __html: `
+					{/* 预览区域 */}
+					<div
+						className={`${activeTab === "preview" ? "block" : "hidden"} md:block`}
+					>
+						<div className="flex h-[600px] flex-col rounded-xl border border-gray-200 bg-white shadow-sm">
+							<div className="flex items-center justify-between border-gray-200 border-b p-4">
+								<h3 className="font-semibold text-gray-800">预览效果</h3>
+								<span className="text-gray-500 text-sm">
+									{isMarkdownReady ? "实时渲染" : "加载中..."}
+								</span>
+							</div>
+							<div className="flex-1 overflow-y-auto">
+								<div
+									id="markdown-preview"
+									className="markdown-body min-h-full p-6"
+									style={{
+										backgroundColor: "#ffffff",
+										minHeight: "100%",
+										width: "100%",
+										position: "relative",
+									}}
+									dangerouslySetInnerHTML={{
+										__html: `
                       <style>
                         .markdown-table {
                           width: 100%;
@@ -962,58 +1021,58 @@ ${renderedHtml}
                         }
                       </style>
                       ${renderedHtml}
-                    ` 
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+                    `,
+									}}
+								/>
+							</div>
+						</div>
+					</div>
+				</div>
 
-        {/* 使用说明 */}
-        <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">使用说明</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-            <div>
-              <h4 className="font-medium text-gray-800 mb-2">文件操作：</h4>
-              <ul className="space-y-1">
-                <li>• 上传 .md 或 .txt 文件</li>
-                <li>• 保存当前内容为 .md 文件</li>
-                <li>• 新建空白文档</li>
-                <li>• 实时字符和行数统计</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-800 mb-2">支持的功能：</h4>
-              <ul className="space-y-1">
-                <li>• 实时 Markdown 预览</li>
-                <li>• 表格、引用、链接渲染</li>
-                <li>• 响应式编辑界面</li>
-                <li>• 多种格式导出</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-800 mb-2">导出说明：</h4>
-              <ul className="space-y-1">
-                <li>• 保存MD: 原始 Markdown 格式</li>
-                <li>• HTML: 带样式的网页格式</li>
-                <li>• Word: 兼容 MS Word 的文档</li>
-                <li>• Excel: 提取表格数据为 CSV</li>
-                <li>• 图片/PDF: 基于预览区域生成</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+				{/* 使用说明 */}
+				<div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+					<h3 className="mb-4 font-semibold text-gray-800 text-lg">使用说明</h3>
+					<div className="grid grid-cols-1 gap-4 text-gray-600 text-sm md:grid-cols-3">
+						<div>
+							<h4 className="mb-2 font-medium text-gray-800">文件操作：</h4>
+							<ul className="space-y-1">
+								<li>• 上传 .md 或 .txt 文件</li>
+								<li>• 保存当前内容为 .md 文件</li>
+								<li>• 新建空白文档</li>
+								<li>• 实时字符和行数统计</li>
+							</ul>
+						</div>
+						<div>
+							<h4 className="mb-2 font-medium text-gray-800">支持的功能：</h4>
+							<ul className="space-y-1">
+								<li>• 实时 Markdown 预览</li>
+								<li>• 表格、引用、链接渲染</li>
+								<li>• 响应式编辑界面</li>
+								<li>• 多种格式导出</li>
+							</ul>
+						</div>
+						<div>
+							<h4 className="mb-2 font-medium text-gray-800">导出说明：</h4>
+							<ul className="space-y-1">
+								<li>• 保存MD: 原始 Markdown 格式</li>
+								<li>• HTML: 带样式的网页格式</li>
+								<li>• Word: 兼容 MS Word 的文档</li>
+								<li>• Excel: 提取表格数据为 CSV</li>
+								<li>• 图片/PDF: 基于预览区域生成</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
 }
 
 // 清理函数，防止内存泄漏
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    if (window.markedInstance) {
-      delete window.markedInstance;
-    }
-  });
-} 
+if (typeof window !== "undefined") {
+	window.addEventListener("beforeunload", () => {
+		if (window.markedInstance) {
+			delete window.markedInstance;
+		}
+	});
+}

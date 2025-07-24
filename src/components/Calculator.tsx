@@ -84,30 +84,120 @@ export function Calculator() {
 	};
 
 	const buttons = [
-		{ id: 'clear', label: 'C', action: clear, className: 'bg-red-500 hover:bg-red-600 text-white col-span-2' },
-		{ id: 'backspace', label: '←', action: () => {
-			if (display.length > 1) {
-				setDisplay(display.slice(0, -1));
-			} else {
-				setDisplay('0');
-			}
-		}, className: 'bg-gray-500 hover:bg-gray-600 text-white' },
-		{ id: 'divide', label: '÷', action: () => performOperation('/'), className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-		{ id: 'seven', label: '7', action: () => inputNumber('7'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'eight', label: '8', action: () => inputNumber('8'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'nine', label: '9', action: () => inputNumber('9'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'multiply', label: '×', action: () => performOperation('*'), className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-		{ id: 'four', label: '4', action: () => inputNumber('4'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'five', label: '5', action: () => inputNumber('5'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'six', label: '6', action: () => inputNumber('6'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'subtract', label: '−', action: () => performOperation('-'), className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-		{ id: 'one', label: '1', action: () => inputNumber('1'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'two', label: '2', action: () => inputNumber('2'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'three', label: '3', action: () => inputNumber('3'), className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'add', label: '+', action: () => performOperation('+'), className: 'bg-blue-500 hover:bg-blue-600 text-white row-span-2' },
-		{ id: 'zero', label: '0', action: () => inputNumber('0'), className: 'bg-gray-200 hover:bg-gray-300 col-span-2' },
-		{ id: 'decimal', label: '.', action: inputDecimal, className: 'bg-gray-200 hover:bg-gray-300' },
-		{ id: 'equals', label: '=', action: handleEquals, className: 'bg-green-500 hover:bg-green-600 text-white' },
+		{
+			id: "clear",
+			label: "C",
+			action: clear,
+			className: "bg-red-500 hover:bg-red-600 text-white col-span-2",
+		},
+		{
+			id: "backspace",
+			label: "←",
+			action: () => {
+				if (display.length > 1) {
+					setDisplay(display.slice(0, -1));
+				} else {
+					setDisplay("0");
+				}
+			},
+			className: "bg-gray-500 hover:bg-gray-600 text-white",
+		},
+		{
+			id: "divide",
+			label: "÷",
+			action: () => performOperation("/"),
+			className: "bg-blue-500 hover:bg-blue-600 text-white",
+		},
+		{
+			id: "seven",
+			label: "7",
+			action: () => inputNumber("7"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "eight",
+			label: "8",
+			action: () => inputNumber("8"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "nine",
+			label: "9",
+			action: () => inputNumber("9"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "multiply",
+			label: "×",
+			action: () => performOperation("*"),
+			className: "bg-blue-500 hover:bg-blue-600 text-white",
+		},
+		{
+			id: "four",
+			label: "4",
+			action: () => inputNumber("4"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "five",
+			label: "5",
+			action: () => inputNumber("5"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "six",
+			label: "6",
+			action: () => inputNumber("6"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "subtract",
+			label: "−",
+			action: () => performOperation("-"),
+			className: "bg-blue-500 hover:bg-blue-600 text-white",
+		},
+		{
+			id: "one",
+			label: "1",
+			action: () => inputNumber("1"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "two",
+			label: "2",
+			action: () => inputNumber("2"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "three",
+			label: "3",
+			action: () => inputNumber("3"),
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "add",
+			label: "+",
+			action: () => performOperation("+"),
+			className: "bg-blue-500 hover:bg-blue-600 text-white row-span-2",
+		},
+		{
+			id: "zero",
+			label: "0",
+			action: () => inputNumber("0"),
+			className: "bg-gray-200 hover:bg-gray-300 col-span-2",
+		},
+		{
+			id: "decimal",
+			label: ".",
+			action: inputDecimal,
+			className: "bg-gray-200 hover:bg-gray-300",
+		},
+		{
+			id: "equals",
+			label: "=",
+			action: handleEquals,
+			className: "bg-green-500 hover:bg-green-600 text-white",
+		},
 	];
 
 	return (
@@ -150,9 +240,9 @@ export function Calculator() {
 								type="button"
 								onClick={button.action}
 								className={`h-12 rounded-lg font-semibold text-lg shadow-sm transition-all duration-200 active:scale-95 ${button.className}
-									${button.label === 'C' ? 'col-span-2' : ''}
-									${button.label === '+' ? 'row-span-2' : ''}
-									${button.label === '0' ? 'col-span-2' : ''}
+									${button.label === "C" ? "col-span-2" : ""}
+									${button.label === "+" ? "row-span-2" : ""}
+									${button.label === "0" ? "col-span-2" : ""}
 								`}
 							>
 								{button.label}
