@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Tool List Application (v0.4.2) - A collection of utility tools built with Next.js 15 App Router, featuring Todo List, Calculator, Markdown processor, and Audio processor tools.
+Tool List Application (v0.4.3) - A collection of utility tools built with Next.js 15 App Router, featuring Todo List, Calculator, Markdown processor, and Audio processor tools.
 
 ## Essential Commands
 
